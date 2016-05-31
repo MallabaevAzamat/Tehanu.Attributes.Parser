@@ -1,0 +1,59 @@
+%{              
+open Tehanu.Core
+open Tehanu.Core.Generators
+%}
+
+%start start
+%token <string> ID
+%token <int> INT
+%token ADD SUB MUL DIV
+%token AND OR
+%token POINT
+%token EQ NE LN BN LE BE
+%token FORALL EXIST 
+%token IMP EQU
+%token BB EB
+%token EOF
+
+%type <Tehanu.Core.Tree> start
+
+%%
+                         
+start: Stmt EOF { $1 }
+
+Ids: Ids ID { (genId $2) :: $1 }
+   | ID { [genId $1] }        
+
+AtomExpr: BB Stmt EB { $2 }
+        | ID { genExprId $1 }
+        | INT { genExprConstInt $1 }                           
+
+CallExpr: CallExpr AtomExpr { genExprApp $1 $2 }
+        | AtomExpr { $1 }
+                                                                       
+FactorExpr: FactorExpr MUL CallExpr { genExprApp (genExprApp (genExprId "*") $1) $3 }
+          | FactorExpr DIV CallExpr { genExprApp (genExprApp (genExprId "/") $1) $3 }
+          | CallExpr { $1 }
+                        
+ArithExpr: ArithExpr ADD FactorExpr { genExprApp (genExprApp (genExprId "+") $1) $3 }
+         | ArithExpr SUB FactorExpr { genExprApp (genExprApp (genExprId "-") $1) $3 }
+         | FactorExpr { $1 }
+
+CompareExpr: ArithExpr EQ ArithExpr { genExprApp (genExprApp (genExprId "==") $1) $3 } 
+           | ArithExpr NE ArithExpr { genExprApp (genExprApp (genExprId "!=") $1) $3 } 
+           | ArithExpr LN ArithExpr { genExprApp (genExprApp (genExprId "<") $1) $3 } 
+           | ArithExpr BN ArithExpr { genExprApp (genExprApp (genExprId ">") $1) $3 } 
+           | ArithExpr LE ArithExpr { genExprApp (genExprApp (genExprId "<=") $1) $3 } 
+           | ArithExpr BE ArithExpr { genExprApp (genExprApp (genExprId ">=") $1) $3 }    
+           | ArithExpr { $1 }
+
+BoolExpr: BoolExpr AND CompareExpr { genExprApp (genExprApp (genExprId "&&") $1) $3 } 
+        | BoolExpr OR CompareExpr { genExprApp (genExprApp (genExprId "||") $1) $3 }    
+        | CompareExpr { $1 }
+
+ComputeExpr: BoolExpr { $1 }
+           | BoolExpr IMP BoolExpr { genExprApp (genExprApp (genExprId "==>") $1) $3 }    
+           | BoolExpr EQU BoolExpr { genExprApp (genExprApp (genExprId "<==>") $1) $3 }
+
+Stmt: FORALL Ids POINT ComputeExpr { genExprForall (genList $2) $4 }
+    | EXIST Ids POINT ComputeExpr { genExprExist (genList $2) $4 }   

@@ -1,0 +1,58 @@
+{                 
+
+module Lexer
+
+open Parser
+
+// Opens methods related to fslex.exe
+open Microsoft.FSharp.Text.Lexing
+
+let newline (lexbuf: LexBuffer<_>) = 
+  lexbuf.StartPos <- lexbuf.StartPos.NextLine           
+
+let keywords =   
+    [   
+        "forall", FORALL;  
+        "exist",  EXIST;
+    ] |> Map.ofList   
+  
+let ops =   
+    [                                  
+        "<==>", EQU;
+        "==>",  IMP;
+        "==",   EQ;
+        "!=",   NE;
+        "<=",   LE;
+        ">=",   BE;
+        "<",    LN;
+        ">",    BN;
+        "+",    ADD;
+        "-",    SUB;
+        "*",    MUL;
+        "/",    DIV;
+        "&&",   AND;
+        "||",   OR;
+    ] |> Map.ofList 
+
+let lexeme = LexBuffer<char>.LexemeString
+  
+}   
+  
+let letter      = ['a'-'z' 'A'-'Z']   
+let digit       = ['0'-'9']   
+let int         = '-'?digit+               
+let identifier  = letter (letter|digit)*   
+let whitespace  = ' '   
+let operator    = "<==>" | "==>" | "==" | "!=" | "<=" | ">=" | "<" | ">" | "+" | "-" | "*" | "/" | "&&" | "||"
+  
+rule tokenize = parse   
+| whitespace    { tokenize lexbuf }                                                 
+| int           { INT(System.Int32.Parse(lexeme lexbuf)) }            
+| operator      { ops.[lexeme lexbuf] }   
+| identifier    { match keywords.TryFind(lexeme lexbuf) with   
+                  | Some(token) -> token   
+                  | None -> ID(lexeme lexbuf) }
+| '.'           { POINT }
+| '('           { BB }
+| ')'           { EB }
+| eof           { EOF }
